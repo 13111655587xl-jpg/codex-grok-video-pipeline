@@ -1,0 +1,4 @@
+interface:
+  display_name: "Grok Imagine Video"
+  short_description: "Generate and verify Grok Imagine MP4s through local OAuth."
+  default_prompt: "Generate the requested Grok Imagine clip, download it locally, verify it, and return the MP4 and metadata paths."

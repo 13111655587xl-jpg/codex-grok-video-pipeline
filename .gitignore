@@ -1,0 +1,12 @@
+.DS_Store
+*.mp4
+*.mp4.json
+*.part
+*.pyc
+__pycache__/
+.pytest_cache/
+.venv/
+auth.json
+*.token
+*.secret
+.env

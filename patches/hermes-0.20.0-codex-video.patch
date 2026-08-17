@@ -1,0 +1,109 @@
+diff --git a/hermes_cli/proxy/adapters/base.py b/hermes_cli/proxy/adapters/base.py
+index 65107b6f1..cdf7dc1b8 100644
+--- a/hermes_cli/proxy/adapters/base.py
++++ b/hermes_cli/proxy/adapters/base.py
+@@ -97,2 +97,6 @@ class UpstreamAdapter(ABC):
+ 
++    def is_path_allowed(self, path: str) -> bool:
++        """Return whether a relative API path may be forwarded."""
++        return path in self.allowed_paths
++
+     def describe(self) -> str:
+diff --git a/hermes_cli/proxy/adapters/xai.py b/hermes_cli/proxy/adapters/xai.py
+index d85db8630..955f4c620 100644
+--- a/hermes_cli/proxy/adapters/xai.py
++++ b/hermes_cli/proxy/adapters/xai.py
+@@ -5,2 +5,3 @@ from __future__ import annotations
+ import logging
++import re
+ import threading
+@@ -26,2 +27,5 @@ _ALLOWED_PATHS: FrozenSet[str] = frozenset(
+         "/models",
++        "/videos/generations",
++        "/videos/edits",
++        "/videos/extensions",
+     }
+@@ -29,2 +33,7 @@ _ALLOWED_PATHS: FrozenSet[str] = frozenset(
+ 
++_VIDEO_STATUS_PATH = re.compile(
++    r"^/videos/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-"
++    r"[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
++)
++
+ 
+@@ -55,2 +64,5 @@ class XAIGrokAdapter(UpstreamAdapter):
+ 
++    def is_path_allowed(self, path: str) -> bool:
++        return path in self.allowed_paths or bool(_VIDEO_STATUS_PATH.fullmatch(path))
++
+     def get_credential(self) -> UpstreamCredential:
+diff --git a/hermes_cli/proxy/server.py b/hermes_cli/proxy/server.py
+index 91d7fb338..bb57d1632 100644
+--- a/hermes_cli/proxy/server.py
++++ b/hermes_cli/proxy/server.py
+@@ -14,2 +14,3 @@ from __future__ import annotations
+ import asyncio
++import json
+ import logging
+@@ -58,2 +59,46 @@ MAX_REQUEST_BYTES = 10_000_000
+ 
++def _drop_key_recursive(value, key: str) -> int:
++    """Drop a provider-incompatible key without logging request contents."""
++    removed = 0
++    if isinstance(value, dict):
++        if key in value:
++            value.pop(key, None)
++            removed += 1
++        for child in value.values():
++            removed += _drop_key_recursive(child, key)
++    elif isinstance(value, list):
++        for child in value:
++            removed += _drop_key_recursive(child, key)
++    return removed
++
++
++def _normalize_xai_responses_body(
++    adapter: UpstreamAdapter,
++    rel_path: str,
++    body: bytes,
++) -> bytes:
++    """Remove Codex-only namespace tools that xAI Responses rejects."""
++    if adapter.name != "xai" or rel_path != "/responses" or not body:
++        return body
++    try:
++        payload = json.loads(body)
++    except (TypeError, ValueError):
++        return body
++    if not isinstance(payload, dict) or not isinstance(payload.get("tools"), list):
++        return body
++    removed_external_web_access = _drop_key_recursive(payload, "external_web_access")
++    tools = payload["tools"]
++    supported_tools = [
++        tool
++        for tool in tools
++        if not (isinstance(tool, dict) and tool.get("type") == "namespace")
++    ]
++    removed = len(tools) - len(supported_tools)
++    if not removed and not removed_external_web_access:
++        return body
++    payload["tools"] = supported_tools
++    logger.info("proxy: removed %d unsupported Codex namespace tool(s)", removed)
++    return json.dumps(payload, separators=(",", ":")).encode("utf-8")
++
++
+ def _json_error(status: int, message: str, code: str = "proxy_error") -> "web.Response":
+@@ -114,3 +159,3 @@ def create_app(adapter: UpstreamAdapter) -> "web.Application":
+ 
+-        if rel_path not in adapter.allowed_paths:
++        if not adapter.is_path_allowed(rel_path):
+             allowed = ", ".join(sorted(adapter.allowed_paths))
+@@ -134,2 +179,3 @@ def create_app(adapter: UpstreamAdapter) -> "web.Application":
+         body = await request.read()
++        body = _normalize_xai_responses_body(adapter, rel_path, body)
+ 
+@@ -152,3 +198,4 @@ def create_app(adapter: UpstreamAdapter) -> "web.Application":
+             try:
+-                session = aiohttp.ClientSession(timeout=timeout)
++                # Respect HTTP(S)_PROXY for hosts where direct egress is unavailable.
++                session = aiohttp.ClientSession(timeout=timeout, trust_env=True)
+             except Exception as exc:  # pragma: no cover - aiohttp setup issue
