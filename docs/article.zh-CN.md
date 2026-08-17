@@ -79,3 +79,5 @@ Codex → 复制提示词 → 打开 Grok → 上传首帧 → 等待
 仓库提供 Codex Plugin、Skill、统一视频脚本、Hermes 兼容补丁、双语文档和安全说明。
 
 如果你也同时订阅了 Codex 和 SuperGrok，并且视频工作流卡在两个产品之间，希望这套方案能少让你做几次“人肉 API”。
+
+项目地址：https://github.com/13111655587xl-jpg/codex-grok-video-pipeline

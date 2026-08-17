@@ -1,5 +1,8 @@
 # Codex Grok 视频流水线
 
+[![Release](https://img.shields.io/github/v/release/13111655587xl-jpg/codex-grok-video-pipeline)](https://github.com/13111655587xl-jpg/codex-grok-video-pipeline/releases)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+
 [English](README.md)
 
 把 Codex 和你本人持有的 SuperGrok 订阅连接成一条本地端到端 AI 视频工作流：

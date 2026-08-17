@@ -1,5 +1,8 @@
 # Codex Grok Video Pipeline
 
+[![Release](https://img.shields.io/github/v/release/13111655587xl-jpg/codex-grok-video-pipeline)](https://github.com/13111655587xl-jpg/codex-grok-video-pipeline/releases)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+
 [简体中文](README.zh-CN.md)
 
 Turn Codex plus your own SuperGrok subscription into a local, end-to-end AI video workflow:
